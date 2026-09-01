@@ -1,7 +1,7 @@
 # Karat-Preperation
 🚀 A Java-based collection of Karat coding interview problems and solutions, created for hands-on interview preparation and improving problem-solving skills
 
-# Karat Java Interview Prep
+## Karat Java Interview Prep
 
 A practice-first repository for preparing for Karat coding interviews using Java.
 
