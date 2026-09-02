@@ -1,4 +1,3 @@
-package project1;
 
 import org.junit.runner.JUnitCore;
 
