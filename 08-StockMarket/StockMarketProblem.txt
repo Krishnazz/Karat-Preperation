@@ -1,0 +1,332 @@
+package Solved;
+
+/*
+We are developing a stock trading data management software that tracks the prices of different stocks over time and provides useful statistics.
+
+The program includes three classes: `Stock`, `PriceRecord`, and `StockCollection`.
+
+Classes:
+* The `Stock` class represents data about a specific stock.
+* The `PriceRecord` class holds information about a single price record for a stock.
+* The `StockCollection` class manages a collection of price records for a particular stock and provides methods to retrieve useful statistics about the stock's prices.
+
+To begin with, we present you with two tasks:
+1-1) Read through and understand the code below. Please take as much time as necessary, and feel free to run the code.
+1-2) The test for StockCollection is not passing due to a bug in the code. Make the necessary changes to StockCollection to fix the bug.
+*/
+/*
+2) We want to add a new function called "getBiggestChange" to the StockCollection class. This function calculates and returns the largest change in stock price between any two consecutive days in the price records of a stock along with the dates of the change in a list. For example, let's consider the following price records of a stock:
+
+Price Records:
+Price:  110         112         90          105
+Date:   2023-06-29  2023-07-01  2023-06-25  2023-07-06
+
+Stock price changes (sorted based on date):
+Date:     2023-06-25  ->  2023-06-29  ->  2023-07-01 ->  2023-07-06
+Price:        90      ->      110     ->     112     ->     105
+Change:              +20              +2             -7
+
+In this case, the biggest change in the stock price was +20, which occurred between 2023-06-25 and 2023-06-29. In this case, the function should return [20, "2023-06-25", "2023-06-29"]
+
+Two days are considered consecutive if there are no other days' data in between them in the price records based on their dates.
+
+To assist you in testing this new function, we have provided the testGetBiggestChange function.
+*/
+/*
+We are currently updating our system to include information about stock transactions. As part of this update, we have introduced two new classes:
+
+1. The `Transaction` class represents data about buy/sell transaction of a stock. It includes data about the stock, the type of transaction (buy/sell), the date of transaction and the quantity of the stocks. 
+2. The `Tradebook` class represents a list of transactions performed by a user.
+
+You are provided with the code for the above classes. To complete the updates, we need to add the `getTotal` function to the `Tradebook` class:
+
+3-1) The `getTotal` function should be used to get the total price of all the stocks owned by the user at the latest date. This functions helps the user to calculate the current value of their portfolio. This function takes the `stockCollections` list as input which contains StockCollections for all stocks.
+
+The StockCollections list is guaranteed to contain all stocks which would be present in the Tradebook and the stock collection for each stock is guaranteed to have the price record for all transaction dates.
+
+To assist you in testing these new functions, we have provided the `testTradebook` function.
+*/
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+/* ===== Stock ===== */
+class Stock {
+	String symbol;
+	String name;
+
+	Stock(String symbol, String name) {
+		this.symbol = symbol;
+		this.name = name;
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (!(o instanceof Stock))
+			return false;
+		Stock s = (Stock) o;
+		return symbol.equals(s.symbol) && name.equals(s.name);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(symbol, name);
+	}
+}
+
+/* ===== PriceRecord ===== */
+class PriceRecord {
+	Stock stock;
+	int price;
+	String date; // YYYY-MM-DD
+
+	PriceRecord(Stock stock, int price, String date) {
+		this.stock = stock;
+		this.price = price;
+		this.date = date;
+	}
+}
+
+/* ===== StockCollection ===== */
+class StockCollection {
+
+	List<PriceRecord> priceRecords = new ArrayList<>();
+	Stock stock;
+
+	StockCollection(Stock stock) {
+		this.stock = stock;
+	}
+
+	void addPriceRecord(PriceRecord record) {
+		if (!record.stock.equals(stock)) {
+			throw new IllegalArgumentException("Stock mismatch");
+		}
+		priceRecords.add(record);
+	}
+
+	int getNumPriceRecords() {
+		return priceRecords.size();
+	}
+
+	int getMaxPrice() {
+		return priceRecords.stream().mapToInt(r -> r.price).max().orElse(-1);
+	}
+
+	int getMinPrice() {
+		return priceRecords.stream().mapToInt(r -> r.price).min().orElse(-1);
+	}
+
+	double getAvgPrice() {
+	     /** Return the average price recorded in this StockCollection. */
+        return priceRecords.stream().mapToInt(record -> record.price).average().orElse(-1.0);
+	}
+	
+	public Object[] getBiggestChange(){
+		if(priceRecords.size() < 2){
+			return null;
+		}
+
+		priceRecords.sort(Comparator.comparing(k -> k.date));
+
+		int maxPrice = Integer.MIN_VALUE;
+		String from = "";
+		String to = "";
+
+		for(int i=1; i<priceRecords.size(); i++){
+			PriceRecord previous = priceRecords.get(i-1); 
+			PriceRecord current = priceRecords.get(i);
+			
+			int change = current.price - previous.price;
+
+			if(Math.abs(change) > Math.abs(maxPrice)){
+				maxPrice = change;
+				from = previous.date;
+				to = current.date;
+			}
+		}
+
+		return new Object[] {maxPrice , from, to};
+
+	}
+
+
+}
+
+/* ===== Transaction ===== */
+class Transaction {
+	Stock stock;
+	String transactionType; // buy / sell
+	String date;
+	int quantity;
+
+	Transaction(Stock stock, String transactionType, String date, int quantity) {
+		this.stock = stock;
+		this.transactionType = transactionType;
+		this.date = date;
+		this.quantity = quantity;
+	}
+}
+
+/* ===== Tradebook ===== */
+class Tradebook {
+
+	List<Transaction> transactions = new ArrayList<>();
+
+	void addTransaction(Transaction transaction) {
+		transactions.add(transaction);
+	}
+	
+	public int getTotal(List<StockCollection> sc){
+
+		int total = 0;
+
+		Map<String, Integer> stockPrice = sc.stream().collect(Collectors.toMap(
+			k -> k.stock.name,
+			k -> {
+				k.priceRecords.sort(Comparator.comparing(l -> l.date));
+				return k.priceRecords.getLast().price;
+			}
+		));
+
+		Map<String , List<Transaction>> stockQuantity = transactions.stream().collect(Collectors.groupingBy(s -> s.stock.name));
+
+		for(Map.Entry<String, List<Transaction>> sq : stockQuantity.entrySet()){
+
+			String accountID = sq.getKey();
+
+			int TotalQuantity = sq.getValue().stream()
+										.mapToInt(l -> "buy".equalsIgnoreCase(l.transactionType)
+														 ? l.quantity : -l.quantity).sum();
+
+			total += TotalQuantity * stockPrice.get(accountID);
+
+		}
+		
+		return total;
+	}
+
+}
+
+/* ===== Solution ===== */
+public class Stocks {
+	public static void main(String[] args) {
+		testPriceRecord();
+		testStockCollection();
+		testGetBiggestChange();
+		testTradebook();
+	}
+
+	public static void testPriceRecord() { // Test basic PriceRecord functionality
+		System.out.println("Running testPriceRecord");
+		Stock testStock = new Stock("AAPL", "Apple Inc.");
+		PriceRecord testPriceRecord = new PriceRecord(testStock, 100, "2023-07-01");
+		assert testPriceRecord.stock.equals(testStock);
+		assert testPriceRecord.price == 100;
+		assert testPriceRecord.date.equals("2023-07-01");
+	}
+
+	private static StockCollection makeStockCollection(Stock stock, Object[][] priceData) {
+		StockCollection stockCollection = new StockCollection(stock);
+		for (Object[] priceRecordData : priceData) {
+			PriceRecord priceRecord = new PriceRecord(stock, (int) priceRecordData[0], (String) priceRecordData[1]);
+			stockCollection.addPriceRecord(priceRecord);
+		}
+		return stockCollection;
+	}
+
+	public static void testStockCollection() {
+		System.out.println("Running testStockCollection "); // Test basic StockCollection functionality
+		Stock testStock = new Stock("AAPL", "Apple Inc.");
+		StockCollection stockCollection = new StockCollection(testStock);
+		assert stockCollection.getNumPriceRecords() == 0;
+		assert stockCollection.getMaxPrice() == -1;
+		assert stockCollection.getMinPrice() == -1;
+		assert Math.abs(stockCollection.getAvgPrice() + 1.0) < 0.001;
+
+		Object[][] priceData = { { 110, "2023-06-29" }, { 112, "2023-07-01" }, { 90, "2023-06-28" },
+				{ 105, "2023-07-06" } };
+		testStock = new Stock("AAPL", "Apple Inc.");
+		stockCollection = makeStockCollection(testStock, priceData);
+		assert stockCollection.getNumPriceRecords() == priceData.length;
+		assert stockCollection.getMaxPrice() == 112;
+		assert stockCollection.getMinPrice() == 90;
+		assert Math.abs(stockCollection.getAvgPrice() - 104.25) < 0.1;
+	}
+
+	public static void testGetBiggestChange() { // Test the getBiggestChange method
+		System.out.println("Running testGetBiggestChange");
+		Stock testStock = new Stock("AAPL", "Apple Inc.");
+		StockCollection stockCollection = new StockCollection(testStock);
+		assert stockCollection.getBiggestChange() == null;
+		Object[][] priceData = { { 110, "2023-06-29" }, { 112, "2023-07-01" }, { 90, "2023-06-25" },
+				{ 105, "2023-07-06" } };
+		stockCollection = makeStockCollection(testStock, priceData);
+		assert Arrays.equals(new Object[] { 20, "2023-06-25", "2023-06-29" }, stockCollection.getBiggestChange());
+		Object[][] priceData2 = { { 200, "2000-01-04" }, { 210, "1999-12-30" }, { 190, "2000-01-03" },
+				{ 180, "2000-01-01" } };
+		stockCollection = makeStockCollection(testStock, priceData2);
+		assert Arrays.equals(new Object[] { -30, "1999-12-30", "2000-01-01" }, stockCollection.getBiggestChange());
+	}
+
+	public static void testTradebook() {
+		System.out.println("Running testTradebook");
+		Tradebook tradebook = new Tradebook();
+		Stock testStock1 = new Stock("AAPL", "Apple Inc.");
+		Object[][] testPriceData1 = { { 110, "2023-06-29" }, { 112, "2023-07-01" }, { 90, "2023-06-25" },
+				{ 105, "2023-07-06" } };
+		StockCollection testStockCollection1 = makeStockCollection(testStock1, testPriceData1);
+		List<StockCollection> testStockCollections = new ArrayList<>();
+		testStockCollections.add(testStockCollection1);
+		Transaction transaction1 = new Transaction(testStock1, "buy", "2023-06-25", 10);
+		tradebook.addTransaction(transaction1); // Total price = 10 * 105 = 1050
+		assert tradebook.getTotal(testStockCollections) == 1050;
+		Transaction transaction2 = new Transaction(testStock1, "buy", "2023-06-29", 5);
+		Transaction transaction3 = new Transaction(testStock1, "sell", "2023-07-01", 3);
+		tradebook.addTransaction(transaction2);
+		tradebook.addTransaction(transaction3); // Total stocks = 10 + 5 - 3 = 12 // Total price = 12* 105 = 1260
+		assert tradebook.getTotal(testStockCollections) == 1260;
+		Stock testStock2 = new Stock("GOOG", "Alphabet Inc.");
+		Stock testStock3 = new Stock("MSFT", "Microsoft Corporation ");
+		Stock testStock4 = new Stock(" AMZN ", "Amazon.com Inc.");
+		Object[][] testPriceData2 = { { 1500, "2023-06-29" }, { 1550, "2023-07-01" }, { 1475, "2023-06-25" },
+				{ 1520, "2023-07-06" } };
+		Object[][] testPriceData3 = { { 250, "2023-06-29" }, { 255, "2023-07- 01" }, { 260, "2023-07-06" },
+				{ 245, "2023-06-25" } };
+		Object[][] testPriceData4 = { { 3550, "2023-07-06" }, { 3500, "2023-06-29" }, { 3600, "2023-07-01" },
+				{ 3450, "2023-06-25" } };
+
+		StockCollection testStockCollection2 = makeStockCollection(testStock2, testPriceData2);
+		StockCollection testStockCollection3 = makeStockCollection(testStock3, testPriceData3);
+		StockCollection testStockCollection4 = makeStockCollection(testStock4, testPriceData4);
+		testStockCollections.add(testStockCollection2);
+		testStockCollections.add(testStockCollection3);
+		testStockCollections.add(testStockCollection4);
+		Transaction transaction4 = new Transaction(testStock2, "buy", "2023-06-25", 15);
+		Transaction transaction5 = new Transaction(testStock2, "sell", "2023-06-29", 10);
+		Transaction transaction6 = new Transaction(testStock2, "sell", "2023-07-01", 1);
+		tradebook.addTransaction(transaction4);
+		tradebook.addTransaction(transaction5);
+		tradebook.addTransaction(transaction6);
+
+		Transaction transaction7 = new Transaction(testStock3, "sell", "2023-07-01", 5);
+		Transaction transaction8 = new Transaction(testStock3, "buy", "2023-06-29", 20);
+		Transaction transaction9 = new Transaction(testStock3, "buy", "2023-06-25", 10);
+		tradebook.addTransaction(transaction7);
+		tradebook.addTransaction(transaction8);
+		tradebook.addTransaction(transaction9);
+		Transaction transaction10 = new Transaction(testStock4, "buy", "2023-07-01", 5);
+		Transaction transaction11 = new Transaction(testStock4, "buy", "2023-06-29", 5);
+		Transaction transaction12 = new Transaction(testStock4, "buy", "2023-06-25", 1);
+		tradebook.addTransaction(transaction10);
+		tradebook.addTransaction(transaction11);
+		tradebook.addTransaction(transaction12);
+		// Stocks: APPL GOOG MSFT AMZN // Total
+		// stocks: 12 4 25 11 // Latest price: 105 1520 260 3550
+		// Total price: 1260 + 6080 + 6500 +
+		// 39050 = 52890
+		assert tradebook.getTotal(testStockCollections) == 52890;
+	}
+
+}
