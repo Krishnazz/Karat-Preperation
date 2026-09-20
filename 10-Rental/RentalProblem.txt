@@ -1,0 +1,502 @@
+/*
+
+ * We are building a program to manage shared medical equipment bookings
+
+ * for a clinic. The clinic has multiple pieces of equipment, such as
+
+ * imaging rooms and portable devices, and staff can reserve them for
+
+ * specific time periods.
+
+ *
+
+ * Definitions:
+
+ * - An "equipment" is an object representing a reservable item. It has
+
+ *   properties for the ID and name.
+
+ * - A "reservation" is an object representing a staff booking for a
+
+ *   specific piece of equipment over a time period. Times are represented
+
+ *   as integers in minutes from the start of the day.
+
+ * - A "RentalManager" is the class used to manage all equipment and
+
+ *   reservations.
+
+ *
+
+ * To begin with, we present you with two tasks:
+
+ * 1-1) Read through and understand the code below. Please take as much
+
+ *      time as necessary, and feel free to run the code.
+
+ * 1-2) One of the tests is failing due to a bug in the code. Make the
+
+ *      necessary changes to RentalManager to fix the bug.
+
+ */
+
+/*
+
+ * We are updating our system to support reservation status reporting.
+
+ * Clinic coordinators need to quickly see which reservations are still
+
+ * active, and they also need to understand how much booked time is
+
+ * currently active versus cancelled.
+
+ *
+
+ * 2-1) Add getActiveReservationIds() to RentalManager.
+
+ *      This function takes no arguments and returns a sorted list of
+
+ *      reservation IDs for all ACTIVE reservations. If there are no
+
+ *      active reservations, return an empty list.
+
+ *
+
+ * 2-2) Add getTotalMinutesByStatus() to RentalManager.
+
+ *      This function takes no arguments and returns a map with two keys:
+
+ *      - "ACTIVE": the total duration in minutes across all active reservations.
+
+ *      - "CANCELLED": the total duration in minutes across all cancelled reservations.
+
+ *      Both keys must always be present, even if the total is 0.
+
+ *
+
+ * To assist you in testing these new functions, we have provided the
+
+ * testGetActiveReservationIds and testGetTotalMinutesByStatus tests.
+
+ */
+
+
+import java.util.*;
+import org.junit.Test;
+import org.junit.runner.JUnitCore;
+import org.junit.runner.Result;
+import org.junit.runner.notification.Failure;
+import static org.junit.Assert.*;
+
+public class Solution {
+
+    enum ReservationStatus {
+        ACTIVE,
+        CANCELLED
+    }
+
+    /** Data about a single piece of reservable medical equipment. */
+    static class Equipment {
+        final int equipmentId;
+        final String name;
+
+        Equipment(int equipmentId, String name) {
+            this.equipmentId = equipmentId;
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return "Equipment ID: " + equipmentId + ", Name: " + name;
+        }
+
+    }
+
+    /** Data about a single equipment reservation. */
+    static class Reservation {
+        final int reservationId;
+        final String staffName;
+        final int equipmentId;
+        final int startTime;
+        final int endTime;
+        ReservationStatus status;
+
+        Reservation(int reservationId, String staffName,
+                    int equipmentId, int startTime, int endTime) {
+            this.reservationId = reservationId;
+            this.staffName = staffName;
+            this.equipmentId = equipmentId;
+            this.startTime = startTime;
+            this.endTime = endTime;
+            this.status = ReservationStatus.ACTIVE;
+        }
+
+        int getDuration() {
+            return endTime - startTime;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof Reservation r)) return false;
+            return reservationId == r.reservationId;
+        }
+
+        @Override
+        public int hashCode() {
+            return Integer.hashCode(reservationId);
+        }
+
+        @Override
+        public String toString() {
+            return "Reservation ID: " + reservationId
+                    + ", Staff: " + staffName
+                    + ", Equipment ID: " + equipmentId
+                    + ", Start: " + startTime
+                    + ", End: " + endTime
+                    + ", Status: " + status;
+        }
+    }
+
+
+
+
+    /**
+
+     * Manages equipment reservations for the clinic.
+
+     * Equipment is identified by equipmentId.
+
+     * Reservations are stored and can be queried or cancelled.
+
+     * Two reservations conflict if they overlap in time for the same equipment.
+
+     */
+
+    static class RentalManager {
+
+        final ArrayList<Equipment> equipmentList = new ArrayList<>();
+
+        final ArrayList<Reservation> reservations = new ArrayList<>();
+
+
+
+
+        /** Adds a piece of equipment to the clinic inventory. */
+
+        void addEquipment(Equipment equipment) {
+
+            equipmentList.add(equipment);
+
+        }
+
+
+
+
+        /**
+
+         * Makes a reservation if the equipment is available for the requested period.
+
+         * Returns true if successfully reserved, false if the equipment is unavailable.
+
+         */
+
+        boolean makeReservation(Reservation reservation) {
+
+            if (!isAvailable(reservation.equipmentId,
+
+                    reservation.startTime,
+
+                    reservation.endTime)) {
+
+                return false;
+
+            }
+
+            reservations.add(reservation);
+
+            return true;
+
+        }
+
+
+
+
+        boolean isAvailable(int equipmentId, int startTime, int endTime) {
+
+            for (Reservation res : reservations) {
+
+                if (res.equipmentId == equipmentId && res.status == ReservationStatus.ACTIVE) {
+
+                    if (startTime < res.endTime && endTime > res.startTime) {
+
+                        return false;
+
+                    }
+
+                }
+
+            }
+
+            return true;
+
+        }
+
+
+
+
+        /**
+
+         * Cancels an active reservation by ID.
+
+         * Returns true if found and cancelled, false otherwise.
+
+         */
+
+        boolean cancelReservation(int reservationId) {
+
+            for (Reservation res : reservations) {
+
+                if (res.reservationId == reservationId) {
+
+                    res.status = ReservationStatus.CANCELLED;
+
+                    return true;
+
+                }
+
+            }
+
+            return false;
+
+        }
+
+
+
+
+        /** Returns all active reservations for a given piece of equipment. */
+
+        ArrayList<Reservation> getReservationsForEquipment(int equipmentId) {
+            ArrayList<Reservation> result = new ArrayList<>();
+            for (Reservation res : reservations) {
+                if (res.equipmentId == equipmentId
+                        && res.status == ReservationStatus.ACTIVE) {
+                    result.add(res);
+                }
+            }
+            return result;
+        }
+
+
+
+        ArrayList<Integer> getActiveReservationIds(){
+
+            ArrayList<Integer> result = new ArrayList<>();
+            for(Reservation res : reservations){
+                if(res.status == ReservationStatus.ACTIVE){
+                    result.add(res.reservationId);
+                }
+            }
+            Collections.sort(result);
+            return result;
+        }
+
+        Map<String, Integer> getTotalMinutesByStatus(){
+            Map<String, Integer> totals = new HashMap<>();
+            int activeTotal = 0;
+            int cancelledTotal =0;
+            for(Reservation res : reservations){
+                if(res.status == ReservationStatus.ACTIVE){
+
+                    activeTotal += res.getDuration();
+                }else if(res.status == ReservationStatus.CANCELLED){
+                    cancelledTotal += res.getDuration();
+                }
+            }
+            totals.put("ACTIVE", activeTotal);
+            totals.put("CANCELLED", cancelledTotal);
+            return totals;
+        }
+
+//        Map<String, Integer> getTotalMinutesByStatus(){
+//            Map<String, Integer> totals = new HashMap<>();
+//            int activeTotal = 0;
+//            int cancelledTotal =0;
+//            for(Reservation reservation : reservations.values()){
+//                if(reservation.getStatus() == ReservationStatus.ACTIVE){
+//                    activeTotal += reservation.getDurationMinutes();
+//                }else if(reservation.getStatus() == ReservationStatus.CANCELLED){
+//                    cancelledTotal += reservation.getDurationMinutes();
+//                }
+//            }
+//            totals.put("ACTIVE", activeTotal);
+//            totals.put("CANCELLED", cancelledTotal);
+//            return totals;
+//
+//        }
+
+        //    result.put(ReservationStatus.ACTIVE, 0);
+        //    result.put(ReservationStatus.CANCELLED, 0);
+        //    for(Reservation res : reservations){
+        //      result.put(res.status, result.get(res.status) + res.getDuration());
+        //    }
+        //    return result;
+        // }
+
+    }
+
+    public static class TestSuite {
+
+        // These tests are not meant to be exhaustive, and primarily show usage.
+
+        @Test
+        public void testMakeReservation() {
+            RentalManager manager = new RentalManager();
+            Reservation res = new Reservation(101, "Alice Johnson", 1, 480, 600);
+            assertTrue(manager.makeReservation(res));
+            assertEquals(1, manager.reservations.size());
+        }
+
+        @Test
+        public void testConflictDetected() {
+            RentalManager manager = new RentalManager();
+            Reservation res1 = new Reservation(101, "Alice Johnson", 1, 480, 600);
+            Reservation res2 = new Reservation(102, "Bob Smith", 1, 540, 660);
+            manager.makeReservation(res1);
+            assertFalse(manager.makeReservation(res2));
+
+        }
+
+        @Test
+        public void testDifferentEquipmentNoConflict() {
+            RentalManager manager = new RentalManager();
+            Reservation res1 = new Reservation(101, "Alice Johnson", 1, 480, 600);
+            Reservation res2 = new Reservation(102, "Bob Smith", 2, 480, 600);
+            assertTrue(manager.makeReservation(res1));
+            assertTrue(manager.makeReservation(res2));
+        }
+
+        @Test
+        public void testCancelledReservationFreesSlot() {
+            RentalManager manager = new RentalManager();
+            Reservation res1 = new Reservation(101, "Alice Johnson", 1, 480, 600);
+            manager.makeReservation(res1);
+            manager.cancelReservation(101);
+            // After cancellation, the same slot should be bookable again
+            Reservation res2 = new Reservation(102, "Bob Smith", 1, 480, 600);
+            assertTrue(manager.makeReservation(res2));
+        }
+
+        @Test
+
+        public void testCancelReservationSuccess() {
+
+            RentalManager manager = new RentalManager();
+            Reservation res = new Reservation(101, "Alice Johnson", 1, 480, 600);
+            manager.makeReservation(res);
+
+            // Cancellation returns true and status is updated to CANCELLED
+
+            assertTrue(manager.cancelReservation(101));
+            assertEquals(ReservationStatus.CANCELLED, manager.reservations.get(0).status);
+
+            // Cancelled reservation remains in the collection — not removed
+            assertEquals(1, manager.reservations.size());
+
+            // Other fields are unchanged after cancellation
+            assertEquals(101, manager.reservations.get(0).reservationId);
+            assertEquals(480, manager.reservations.get(0).startTime);
+            assertEquals(600, manager.reservations.get(0).endTime);
+            assertEquals(1,   manager.reservations.get(0).equipmentId);
+            assertEquals("Alice Johnson", manager.reservations.get(0).staffName);
+
+            // Cancelling a non-existent reservation returns false
+            assertFalse(manager.cancelReservation(999));
+
+        }
+
+        @Test
+
+        public void testGetActiveReservationIds() {
+
+            RentalManager manager = new RentalManager();
+            // No reservations
+            assertEquals(new ArrayList<>(), manager.getActiveReservationIds());
+
+            Reservation res1 = new Reservation(103, "Carol White", 1, 600, 690);
+            Reservation res2 = new Reservation(101, "Alice Johnson", 1, 480, 540);
+            Reservation res3 = new Reservation(102, "Bob Smith", 2, 500, 560);
+            manager.makeReservation(res1);
+            manager.makeReservation(res2);
+            manager.makeReservation(res3);
+
+            assertEquals(Arrays.asList(101, 102, 103), manager.getActiveReservationIds());
+            manager.cancelReservation(101);
+            assertEquals(Arrays.asList(102, 103), manager.getActiveReservationIds());
+
+           manager.cancelReservation(103);
+            assertEquals(Arrays.asList(102), manager.getActiveReservationIds());
+
+        }
+
+
+
+
+        @Test
+        public void testGetTotalMinutesByStatus() {
+            RentalManager manager = new RentalManager();
+            // No reservations — both keys still present
+
+            Map<String, Integer> totals = manager.getTotalMinutesByStatus();
+            assertEquals(Integer.valueOf(0), totals.get("ACTIVE"));
+            assertEquals(Integer.valueOf(0), totals.get("CANCELLED"));
+
+            Reservation res1 = new Reservation(101, "Alice Johnson", 1, 480, 540);  // 60 min
+            Reservation res2 = new Reservation(102, "Bob Smith", 2, 500, 560);      // 60 min
+            Reservation res3 = new Reservation(103, "Carol White", 1, 600, 690);    // 90 min
+
+            manager.makeReservation(res1);
+            manager.makeReservation(res2);
+            manager.makeReservation(res3);
+
+            totals = manager.getTotalMinutesByStatus();
+
+            assertEquals(Integer.valueOf(210), totals.get("ACTIVE"));
+            assertEquals(Integer.valueOf(0), totals.get("CANCELLED"));
+
+            manager.cancelReservation(101);
+
+            totals = manager.getTotalMinutesByStatus();
+
+            assertEquals(Integer.valueOf(150), totals.get("ACTIVE"));
+            assertEquals(Integer.valueOf(60), totals.get("CANCELLED"));
+
+            manager.cancelReservation(102);
+            manager.cancelReservation(103);
+
+            totals = manager.getTotalMinutesByStatus();
+
+            assertEquals(Integer.valueOf(0), totals.get("ACTIVE"));
+            assertEquals(Integer.valueOf(210), totals.get("CANCELLED"));
+
+        }
+
+    }
+
+
+
+
+    public static void main(String[] args) {
+
+        Result result = JUnitCore.runClasses(TestSuite.class);
+        for (Failure failure : result.getFailures()) {
+            System.out.println(failure.getTrace());
+        }
+
+        if (result.wasSuccessful()) {
+            System.out.println("All tests passed successfully.");
+        } else {
+            System.err.println("Tests failed: " + result.getFailureCount() + " test(s) failed.");
+            System.exit(1);
+        }
+    }
+}
