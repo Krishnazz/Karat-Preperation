@@ -1,0 +1,272 @@
+import java.util.*;
+
+class Song {
+    public int songId;
+    public String title;
+    public String artist;
+    public int durationSeconds;
+    public String description;
+    public String album;
+    public Integer releaseYear;
+    public String genre;
+
+    public Song(int songId, String title, String artist, int durationSeconds) {
+        this.songId = songId;
+        this.title = title;
+        this.artist = artist;
+        this.durationSeconds = durationSeconds;
+        this.description = null;
+        this.album = null;
+        this.releaseYear = null;
+        this.genre = null;
+    }
+
+    public Song(int songId, String title, String artist, int durationSeconds,
+                String description, String album, Integer releaseYear, String genre) {
+        this.songId = songId;
+        this.title = title;
+        this.artist = artist;
+        this.durationSeconds = durationSeconds;
+        this.description = description;
+        this.album = album;
+        this.releaseYear = releaseYear;
+        this.genre = genre;
+    }
+}
+
+class PlayEvent {
+    public int playId;
+    public int userId;
+    public int songId;
+    public int listenedSeconds;
+    public int timestamp;
+
+    public PlayEvent(int playId, int userId, int songId, int listenedSeconds, int timestamp) {
+        this.playId = playId;
+        this.userId = userId;
+        this.songId = songId;
+        this.listenedSeconds = listenedSeconds;
+        this.timestamp = timestamp;
+    }
+}
+
+class ListenerStats {
+    public int totalPlays;
+    public int uniqueSongs;
+    public double completionRate;
+
+    public ListenerStats(int totalPlays, int uniqueSongs, double completionRate) {
+        this.totalPlays = totalPlays;
+        this.uniqueSongs = uniqueSongs;
+        this.completionRate = completionRate;
+    }
+}
+
+
+
+class DedupResult {
+    public int songId;
+    public List<Integer> mergedIds;
+
+    public DedupResult(int songId, List<Integer> mergedIds) {
+        this.songId = songId;
+        this.mergedIds = mergedIds;
+    }
+}
+
+class MusicLibrary {
+    public Map<Integer, Song> songs;
+    public List<PlayEvent> playEvents;
+
+    public MusicLibrary() {
+        songs = new HashMap<>();
+        playEvents = new ArrayList<>();
+    }
+
+    public void addSong(Song song) {
+        songs.put(song.songId, song);
+    }
+
+    public void addPlayEvent(PlayEvent event) {
+        playEvents.add(event);
+    }
+
+    private boolean isCompleted(PlayEvent event) {
+        // A play is completed when listenedSeconds reaches the song's duration.
+        Song song = songs.get(event.songId);
+        return event.listenedSeconds >= song.durationSeconds;
+    }
+
+    public ListenerStats getListenerStats(int userId) {
+        /*
+            Return statistics for a single user:
+            * totalPlays:     total number of play events by this user
+            * uniqueSongs:    number of distinct songs this user has played (including skipped plays)
+            * completionRate: fraction of this user's plays that were completed,
+                              expressed as a value between 0.0 and 1.0
+        */
+        List<PlayEvent> userEvents = new ArrayList<>();
+        for (PlayEvent e : playEvents) {
+            if (e.userId == userId) {
+                userEvents.add(e);
+            }
+        }
+
+        List<PlayEvent> completedEvents = new ArrayList<>();
+        for (PlayEvent e : userEvents) {
+            if (isCompleted(e)) {
+            	completedEvents.add(e);
+            }
+        }
+        int totalPlays = userEvents.size();
+
+        Set<Integer> uniqueSet = new HashSet<>();
+        for (PlayEvent e : userEvents) {
+        
+            uniqueSet.add(e.songId);
+        }
+        int uniqueSongs = uniqueSet.size();
+
+        double completionRate;
+        if (totalPlays == 0) {
+            completionRate = 0.0;
+        } else {
+            completionRate = (double) completedEvents.size() / userEvents.size();
+        }
+
+        return new ListenerStats(totalPlays, uniqueSongs, completionRate);
+    }
+
+    Map<String,List<Integer>> DupMap=new HashMap<>();
+	public List<DedupResult> findDuplicateGroups() {
+		// TODO Auto-generated method stub
+		List<DedupResult> result=new ArrayList<>();
+		for(Map.Entry<Integer, Song> s:songs.entrySet()) {
+			String key=s.getValue().artist.toLowerCase()+" "+s.getValue().title.toLowerCase()+" "+s.getValue().durationSeconds;
+			DupMap.computeIfAbsent(key, k->new ArrayList<>()).add(s.getKey());
+		}
+	
+		for(List<Integer> songIDs:DupMap.values()) {
+			
+			if(songIDs.size()==1) {
+		       continue;
+			}
+			int unique=songIDs.get(0);
+			List<Integer>merged=songIDs.subList(1, songIDs.size());
+			
+			result.add(new DedupResult(unique,merged));
+			
+			
+		}
+		//System.out.println(DupMap);
+		result.sort(Comparator.comparingInt(i->i.songId));
+		return result;
+	}
+}
+
+public class Solution {
+    public static void main(String[] args) {
+        testGetListenerStats();
+        testDedup();
+        System.out.println("All tests pass!");
+    }
+
+    public static void testGetListenerStats() {
+        System.out.println("Running testGetListenerStats");
+        MusicLibrary lib = new MusicLibrary();
+
+        // Catalog: 3 songs.
+        lib.addSong(new Song(101, "Song A", "Artist 1", 180));
+        lib.addSong(new Song(102, "Song B", "Artist 2", 200));
+        lib.addSong(new Song(103, "Song C", "Artist 1", 240));
+
+        // User 1: 4 plays total
+        //   - song 101 completed (180 of 180)
+        //   - song 102 completed (220 of 200)
+        //   - song 101 skipped  (50 of 180)
+        //   - song 103 skipped  (100 of 240)
+        // Expected: totalPlays = 4, uniqueSongs = 3, completionRate = 0.5
+        lib.addPlayEvent(new PlayEvent(1, 1, 101, 180, 1000));
+        lib.addPlayEvent(new PlayEvent(2, 1, 102, 220, 1100));
+        lib.addPlayEvent(new PlayEvent(3, 1, 101, 50,  1200));
+        lib.addPlayEvent(new PlayEvent(4, 1, 103, 100, 1300));
+
+        // User 2: 2 plays total
+        //   - song 102 completed (200 of 200)
+        //   - song 103 completed (250 of 240)
+        // Expected: totalPlays = 2, uniqueSongs = 2, completionRate = 1.0
+        lib.addPlayEvent(new PlayEvent(5, 2, 102, 200, 2000));
+        lib.addPlayEvent(new PlayEvent(6, 2, 103, 250, 2100));
+
+        ListenerStats statsUser1 = lib.getListenerStats(1);
+        assert statsUser1.totalPlays == 4 :
+            "totalPlays should be 4, was " + statsUser1.totalPlays;
+        assert statsUser1.uniqueSongs == 3 :
+            "uniqueSongs should be 3, was " + statsUser1.uniqueSongs;
+        assert Math.abs(statsUser1.completionRate - 0.5) < 1e-4 :
+            "completionRate should be 0.5, was " + statsUser1.completionRate;
+        System.out.println(statsUser1.completionRate);
+
+        ListenerStats statsUser2 = lib.getListenerStats(2);
+        assert statsUser2.totalPlays == 2 :
+            "totalPlays should be 2, was " + statsUser2.totalPlays;
+        assert statsUser2.uniqueSongs == 2 :
+            "uniqueSongs should be 2, was " + statsUser2.uniqueSongs;
+        assert Math.abs(statsUser2.completionRate - 1.0) < 1e-4 :
+            "completionRate should be 1.0, was " + statsUser2.completionRate;
+
+        ListenerStats statsUser3 = lib.getListenerStats(3);
+        assert statsUser3.totalPlays == 0 :
+            "totalPlays should be 0, was " + statsUser3.totalPlays;
+        assert statsUser3.uniqueSongs == 0 :
+            "uniqueSongs should be 0, was " + statsUser3.uniqueSongs;
+        assert Math.abs(statsUser3.completionRate - 0.0) < 1e-4 :
+            "completionRate should be 0.0, was " + statsUser3.completionRate;
+    }
+    
+    // Add inside the existing Solution class:
+public static void testDedup() {
+    System.out.println("Running testDedup");
+    MusicLibrary lib = new MusicLibrary();
+
+    // Group A: songs 1, 2, 3 share ("song a", "artist 1", 180).
+    lib.addSong(new Song(1, "Song A",  "Artist 1", 180, null, null, null, "rock"));
+    lib.addSong(new Song(2, "song a",  "ARTIST 1", 180, "Studio version", "First Album", null, "rock"));
+    lib.addSong(new Song(3, "SONG A",  "artist 1", 180, "Live", "Live Album", null, null));
+
+    // Group B: songs 10, 11 share ("song b", "artist 2", 200).
+    lib.addSong(new Song(10, "Song B", "Artist 2", 200, null, "B Album", null, null));
+    lib.addSong(new Song(11, "SONG B", "Artist 2", 200, "some description", null, null, "pop"));
+
+    // Group C: songs 20, 21 share ("song c", "artist 3", 240). Duplicate — smallest songId wins.
+    lib.addSong(new Song(20, "Song C", "Artist 3", 240));
+    lib.addSong(new Song(21, "song c", "Artist 3", 240));
+
+    // Unique song — not a duplicate.
+    lib.addSong(new Song(99, "Only Song", "Solo Artist", 300));
+
+    // Identify songs to merge.
+    List<DedupResult> results = lib.findDuplicateGroups();
+    
+
+    assert results.size() == 3 :
+        "results size should be 3, was " + results.size();
+    //System.out.println(results.size());
+
+    assert results.get(0).songId == 1 :
+        "results[0].songId should be 1, was " + results.get(0).songId;
+    System.out.println(results.get(0).songId+" "+results.get(0).mergedIds);
+    assert results.get(0).mergedIds.equals(Arrays.asList(2, 3)) :
+        "results[0].mergedIds should be [2, 3], was " + results.get(0).mergedIds;
+
+    assert results.get(1).songId == 10 :
+        "results[1].songId should be 10, was " + results.get(1).songId;
+    assert results.get(1).mergedIds.equals(Arrays.asList(11)) :
+        "results[1].mergedIds should be [11], was " + results.get(1).mergedIds;
+
+    assert results.get(2).songId == 20 :
+        "results[2].songId should be 20, was " + results.get(2).songId;
+    assert results.get(2).mergedIds.equals(Arrays.asList(21)) :
+        "results[2].mergedIds should be [21], was " + results.get(2).mergedIds;
+}
+}
