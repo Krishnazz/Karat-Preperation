@@ -1,0 +1,214 @@
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import org.junit.Test;
+import org.junit.runner.JUnitCore;
+import org.junit.runner.Result;
+import org.junit.runner.notification.Failure;
+import static org.junit.Assert.*;
+
+public class Solution {
+    /**
+     * TransactionType indicates the category of the financial transaction: DEPOSIT,
+     * WITHDRAWAL, and TRANSFER.
+     */
+    enum TransactionType {
+        DEPOSIT, WITHDRAWAL, TRANSFER
+    }
+
+    /** Data about a single financial transaction. */
+    static class Transaction {
+        final int transactionId;
+        final int accountId;
+        final double amount;
+        final TransactionType transactionType;
+        final int timestamp;
+
+        Transaction(int transactionId, int accountId, double amount, TransactionType transactionType, int timestamp) {
+            this.transactionId = transactionId;
+            this.accountId = accountId;
+            this.amount = amount;
+            this.transactionType = transactionType;
+            this.timestamp = timestamp;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (!(other instanceof Transaction t)) {
+                return false;
+            }
+            return transactionId == t.transactionId && accountId == t.accountId && Double.compare(amount, t.amount) == 0
+                    && transactionType == t.transactionType && timestamp == t.timestamp;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(transactionId, accountId, amount, transactionType, timestamp);
+        }
+
+        @Override
+        public String toString() {
+            return "Transaction " + transactionId + " (account " + accountId + ") amount=" + amount + ", type="
+                    + transactionType + ", timestamp=" + timestamp;
+        }
+    }
+
+    /**
+     * Data for managing transactions, and methods compliance staff use to query
+     * them.
+     */
+    static class ComplianceMonitor {
+        final ArrayList<Transaction> transactions = new ArrayList<>();
+
+        /** Records a transaction for the day. */
+        void addTransaction(Transaction transaction) {
+            transactions.add(transaction);
+        }
+
+        /** Returns the transaction with the given ID, or null if not found. */
+        Transaction getTransaction(int transactionId) {
+            for (Transaction transaction : transactions) {
+                if (transaction.transactionId == transactionId) {
+                    return transaction;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Returns the IDs of all transactions for the given account, sorted ascending.
+         */
+        List<Integer> getTransactionsForAccount(int accountId) {
+            List<Integer> result = new ArrayList<>();
+            for (Transaction transaction : transactions) {
+                if (transaction.accountId == accountId) {
+                    result.add(transaction.transactionId);
+                }
+            }
+            Collections.sort(result);
+            return result;
+        }
+        
+        
+        List<Integer> getHighValueTransactions(double amountThreshold) {
+           List<Integer> result=new ArrayList<>();
+           
+           result= transactions.stream().filter(i->i.amount>=amountThreshold)
+                         .sorted(Comparator.comparingDouble((Transaction i)->i.amount).reversed().thenComparing(i->i.transactionId))
+                         .map(i->i.transactionId).toList();  ///  
+           
+            return result;
+
+        }
+
+    
+        Map<String, Object> getAccountSummary(int accountId) {
+        	Map<String,Object> result=new HashMap<>();
+        	int Count=(int)transactions.stream().filter(i->i.accountId==accountId).count();
+        	double total=transactions.stream().filter(i->i.accountId==accountId).mapToDouble(i->i.amount).sum();
+        	        	
+        	result.put("total_transactions", Count);
+        	result.put("total_amount", total);
+        			
+        return result;
+        }
+
+    }
+
+    /**
+     * This is not a complete test suite, but tests some basic functionality of the
+     * code and shows how to use it.
+     */
+    public static class TestSuite {
+
+        @Test
+        public void testTransaction() {
+            Transaction t = new Transaction(1, 100, 5000.00, TransactionType.DEPOSIT, 480);
+            assertEquals(1, t.transactionId);
+            assertEquals(100, t.accountId);
+            assertEquals(5000.00, t.amount, 0.001);
+            assertEquals(TransactionType.DEPOSIT, t.transactionType);
+            assertEquals(480, t.timestamp);
+        }
+
+        @Test
+        public void testGetTransactionsForAccount() {
+            // final int transactionId;
+            // final int accountId;
+            // final double amount;
+            // final TransactionType transactionType;
+            // final int timestamp;
+            ComplianceMonitor monitor = new ComplianceMonitor();
+            monitor.addTransaction(new Transaction(1, 100, 5000.00, TransactionType.DEPOSIT, 480));
+            monitor.addTransaction(new Transaction(2, 200, 3000.00, TransactionType.WITHDRAWAL, 490));
+            monitor.addTransaction(new Transaction(3, 100, 1500.00, TransactionType.TRANSFER, 500));
+            monitor.addTransaction(new Transaction(4, 200, 7500.00, TransactionType.DEPOSIT, 510));
+            monitor.addTransaction(new Transaction(5, 100, 2000.00, TransactionType.DEPOSIT, 520));
+
+            // Account 100 owns transactions 1, 3, and 5.
+            assertEquals(List.of(1, 3, 5), monitor.getTransactionsForAccount(100));
+            // Account 200 owns transactions 2 and 4.
+            assertEquals(List.of(2, 4), monitor.getTransactionsForAccount(200));
+            // An account with no transactions returns an empty list.
+            assertEquals(List.of(), monitor.getTransactionsForAccount(999));
+        }
+
+        @Test
+        public void testGetHighValueTransactions() {
+            // Test getHighValueTransactions.
+            ComplianceMonitor monitor = new ComplianceMonitor();
+            monitor.addTransaction(new Transaction(3, 200, 5000.00, TransactionType.WITHDRAWAL, 510));
+            monitor.addTransaction(new Transaction(2, 100, 15000.00, TransactionType.DEPOSIT, 500));
+            monitor.addTransaction(new Transaction(1, 100, 5000.00, TransactionType.DEPOSIT, 480));
+            monitor.addTransaction(new Transaction(4, 300, 200.00, TransactionType.TRANSFER, 520));
+            monitor.addTransaction(new Transaction(5, 200, 10000.00, TransactionType.DEPOSIT, 530));
+
+            assertEquals(List.of(2, 5, 1, 3), monitor.getHighValueTransactions(5000.00));
+            assertEquals(List.of(2, 5), monitor.getHighValueTransactions(10000.00));
+            assertEquals(List.of(), monitor.getHighValueTransactions(50000.00));
+            assertEquals(List.of(2, 5, 1, 3, 4), monitor.getHighValueTransactions(200.00));
+           
+            System.out.println("testGetHighValueTransactions executed successfully");
+        }
+
+        @Test
+        public void testGetAccountSummary() {
+            // Test getAccountSummary.
+            ComplianceMonitor monitor = new ComplianceMonitor();
+            monitor.addTransaction(new Transaction(1, 100, 5000.00, TransactionType.DEPOSIT, 480));
+            monitor.addTransaction(new Transaction(2, 100, 15000.00, TransactionType.DEPOSIT, 500));
+            monitor.addTransaction(new Transaction(3, 200, 3000.00, TransactionType.WITHDRAWAL, 510));
+
+            Map<String, Object> summary100 = monitor.getAccountSummary(100);
+            assertEquals(2, summary100.get("total_transactions"));
+            assertEquals(20000.00, (double) summary100.get("total_amount"), 0.001);
+
+            Map<String, Object> summary200 = monitor.getAccountSummary(200);
+            assertEquals(1, summary200.get("total_transactions"));
+            assertEquals(3000.00, (double) summary200.get("total_amount"), 0.001);
+
+            Map<String, Object> summary999 = monitor.getAccountSummary(999);
+            assertEquals(0, summary999.get("total_transactions"));
+            assertEquals(0.0, (double) summary999.get("total_amount"), 0.001);
+            
+        }
+    }
+
+    public static void main(String[] args) {
+        Result result = JUnitCore.runClasses(TestSuite.class);
+        for (Failure failure : result.getFailures()) {
+            System.out.println(failure.getTrace());
+        }
+        if (result.wasSuccessful()) {
+            System.out.println("All tests passed successfully.");
+        } else {
+            System.err.println("Tests failed: " + result.getFailureCount() + " test(s) failed.");
+            System.exit(1);
+        }
+    }
+}
