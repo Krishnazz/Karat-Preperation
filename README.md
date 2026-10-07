@@ -24,3 +24,7 @@ This repository contains my solutions to Karat coding problems, with a focus on 
 I try to solve each problem independently first, then improve the solution by focusing on readability, optimization, and edge cases.
 
 > One problem at a time. One step closer to cracking the interview. 🚀
+
+## 🏆 Achievement
+
+- Successfully cleared the Karat coding assessment.
